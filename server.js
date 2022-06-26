@@ -110,4 +110,21 @@ server.get('/messages', async (req, res) => {
   }
 });
 
+server.post('/status', async (req, res) => {
+  try {
+    const User = req.header("User");
+
+    if(await db.collection('participants').findOne({name: User})) {
+      await db.collection('participants').updateOne(
+        {name: User}, 
+        { $set: {lastStatus: Date.now()} }
+      );
+      return res.status(200).send();
+    }
+    return res.status(404).send();
+  } catch(error) {
+    res.send("Algo de errado não está certo!");
+  }
+})
+
 server.listen(5000, () => console.log("Server online."));
