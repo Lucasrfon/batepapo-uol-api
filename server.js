@@ -94,4 +94,20 @@ server.post('/messages', async (req, res) => {
   }
 });
 
+server.get('/messages', async (req, res) => {
+  try {
+    const messages = await db.collection('messages').find().toArray();
+    const User = req.header("User");
+    const limit = parseInt(req.query.limit);
+    
+    if(limit) {
+      return res.send(messages.slice(-limit));
+    }
+    res.send(messages.filter(message => 
+      message.type === "message" || message.to === User || message.from === User));
+  } catch(error) {
+    res.send("Algo de errado não está certo!");
+  }
+});
+
 server.listen(5000, () => console.log("Server online."));
