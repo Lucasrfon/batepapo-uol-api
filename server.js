@@ -6,6 +6,10 @@ import dayjs from 'dayjs';
 import dotenv from 'dotenv';
 dotenv.config();
 
+const server = express();
+server.use(cors());
+server.use(express.json());
+
 const mongoClient = new MongoClient(process.env.MONGO_URL);
 let db;
 mongoClient.connect().then(() => {
@@ -13,10 +17,12 @@ mongoClient.connect().then(() => {
 });
 
 const participantSchema = joi.object({ name: joi.string().required() });
-
-const server = express();
-server.use(cors());
-server.use(express.json());
+const messageSchema = joi.object({
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.string().valid('message', 'private_message').required(),
+  User: joi.string().required()
+})
 
 server.post('/participants', async (req, res) => {
   const validation = participantSchema.validate(req.body);
@@ -38,10 +44,10 @@ server.post('/participants', async (req, res) => {
       text: 'entra na sala...',
       type: 'status',
       time: dayjs().format('HH:mm:ss')
-    })
+    });
     res.status(201).send();
   } catch(error) {
-    res.sendStatus(500);
+    res.send("Algo de errado não está certo!");
   }
 });
 
@@ -50,18 +56,42 @@ server.get('/participants', async (req, res) => {
     const participants = await db.collection('participants').find().toArray();
     res.send(participants);
   } catch(error) {
-    res.send("Algo de errado não está certo!")
+    res.send("Algo de errado não está certo!");
   }
 });
 
 server.delete('/participants', async (req, res) => {
-  const {name} = req.body
+  const {name} = req.body;
+
   try {
     const participants = await db.collection('participants').deleteOne({name: name});
     res.send(participants);
   } catch(error) {
-    res.send("Algo de errado não está certo!")
+    res.send("Algo de errado não está certo!");
   }
-})
+});
+
+server.post('/messages', async (req, res) => {
+  const { to, text, type } = req.body;
+  const User = req.header("User");
+  const validation = messageSchema.validate({ to, text, type, User });
+
+  if(validation.error) {
+    return res.status(422).send(validation.error.details[0].message);
+  };
+
+  try {
+    await db.collection('messages').insertOne({
+      from: User,
+      to: to,
+      text: text,
+      type: type,
+      time: dayjs().format('HH:mm:ss')
+    });
+    res.status(201).send();
+  } catch(error) {
+    res.send("Algo de errado não está certo!");
+  }
+});
 
 server.listen(5000, () => console.log("Server online."));
