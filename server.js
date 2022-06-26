@@ -60,17 +60,6 @@ server.get('/participants', async (req, res) => {
   }
 });
 
-server.delete('/participants', async (req, res) => {
-  const {name} = req.body;
-
-  try {
-    const participants = await db.collection('participants').deleteOne({name: name});
-    res.send(participants);
-  } catch(error) {
-    res.send("Algo de errado não está certo!");
-  }
-});
-
 server.post('/messages', async (req, res) => {
   const { to, text, type } = req.body;
   const User = req.header("User");
@@ -125,6 +114,24 @@ server.post('/status', async (req, res) => {
   } catch(error) {
     res.send("Algo de errado não está certo!");
   }
-})
+});
+
+setInterval(removeIdle, 15000);
+
+async function removeIdle() {
+  const participants = await db.collection('participants').find().toArray();
+  participants.forEach(participant => {
+    if(participant.lastStatus < (Date.now() - 10000)) {
+      db.collection('participants').deleteOne(participant);
+      db.collection('messages').insertOne({
+        from: participant.name,
+        to: 'Todos',
+        text: 'sai da sala...',
+        type: 'status',
+        time: dayjs().format('HH:mm:ss')
+      });
+    }
+  });
+}
 
 server.listen(5000, () => console.log("Server online."));
