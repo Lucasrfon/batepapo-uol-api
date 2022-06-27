@@ -21,7 +21,16 @@ const messageSchema = joi.object({
   to: joi.string().required(),
   text: joi.string().required(),
   type: joi.string().valid('message', 'private_message').required(),
-  User: joi.string().required()
+  User: joi.string().custom((value, helper) => {
+    db.collection('participants').findOne({name: value}).then((participant) => {
+      if(participant === null) {
+        return helper.error("any.invalid");
+      }
+      
+      return true;
+      
+    })
+  }).required()
 })
 
 server.post('/participants', async (req, res) => {
@@ -90,9 +99,10 @@ server.get('/messages', async (req, res) => {
     const limit = parseInt(req.query.limit);
     
     if(limit) {
-      return res.send(messages.slice(-limit));
+      return res.send(messages.slice(-limit).filter(message => 
+        message.type === "message" || message.to === User || message.from === User));
     }
-    res.send(messages.filter(message => 
+    res.send(await messages.filter(message => 
       message.type === "message" || message.to === User || message.from === User));
   } catch(error) {
     res.send("Algo de errado não está certo!");
