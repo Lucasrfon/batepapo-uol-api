@@ -109,7 +109,7 @@ server.delete('/messages/:messageId', async (req, res) => {
   const messageId = req.params.messageId;
   const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
   
-  if(await db.collection('messages').findOne({ _id: new ObjectId(messageId) }) == null) {
+  if(message == null) {
     return res.status(404).send();
   };
 
@@ -120,7 +120,41 @@ server.delete('/messages/:messageId', async (req, res) => {
 
     await db.collection('messages').deleteOne({ _id: new ObjectId(messageId) });
     return res.status(200).send();
-    
+
+  } catch(error) {
+    res.send("Algo de errado não está certo!");
+  }
+});
+
+server.put('/messages/:messageId', async (req, res) => {
+  const { to, text, type } = req.body;
+  const User = req.header("User");
+  const validation = messageSchema.validate({ to, text, type, User });
+  const messageId = req.params.messageId;
+  const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
+
+  if(validation.error) {
+    return res.status(422).send(validation.error.details[0].message);
+  };
+
+  if(!(await db.collection('participants').findOne({name: User}))) {
+    return res.status(422).send("Usuário não encontrado");
+  };
+
+  if(message == null) {
+    return res.status(404).send();
+  };
+
+  try {
+    if(message.from !== User) {
+      return res.status(401).send();
+    }  
+
+    await db.collection('messages').updateOne(
+      {_id: messageId },
+      { $set: {text: text, to: to, type: type}}
+    );
+    res.status(200).send();
   } catch(error) {
     res.send("Algo de errado não está certo!");
   }
